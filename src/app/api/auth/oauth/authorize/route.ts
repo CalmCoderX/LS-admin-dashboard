@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOAuthCallbackUrl } from '@/lib/app-origin';
 import { API_BASE_URL } from '@/utils/auth-constants';
 
 /**
@@ -9,7 +10,7 @@ import { API_BASE_URL } from '@/utils/auth-constants';
 export async function GET(request: NextRequest) {
   const connection = request.nextUrl.searchParams.get('connection');
   const returnTo = request.nextUrl.searchParams.get('return_to') || '/dashboard';
-  const callbackUrl = `${request.nextUrl.origin}/api/auth/oauth/callback`;
+  const callbackUrl = getOAuthCallbackUrl(request);
 
   const params = new URLSearchParams({
     redirect_uri: callbackUrl,

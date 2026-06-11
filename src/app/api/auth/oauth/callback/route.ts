@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOAuthCallbackUrl } from '@/lib/app-origin';
 import {
   clearAuthCookies,
   isAdminDashboardRole,
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const callbackUrl = `${request.nextUrl.origin}/api/auth/oauth/callback`;
+  const callbackUrl = getOAuthCallbackUrl(request);
 
   const tokenResponse = await fetch(`${API_BASE_URL}/api/auth/oauth/callback`, {
     method: 'POST',
