@@ -1225,20 +1225,6 @@ export interface UpdateUserRequest {
   is_active?: boolean;
 }
 
-export interface CreateOrganizationRequest {
-  name: string;
-  tier_id?: number | null;
-  service_type: string;
-  billing_location?: 'WORLD' | 'BRAZIL';
-}
-
-export interface UpdateOrganizationRequest {
-  name?: string;
-  tier_id?: number | null;
-  service_type: string;
-  billing_location?: 'WORLD' | 'BRAZIL' | null;
-}
-
 export interface RateLimitConfigRequest {
   name: string;
   description?: string;
