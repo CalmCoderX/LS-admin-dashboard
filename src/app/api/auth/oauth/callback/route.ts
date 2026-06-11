@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getOAuthCallbackUrl } from '@/lib/app-origin';
+import { buildAppUrl, getOAuthCallbackUrl } from '@/lib/app-origin';
 import {
   clearAuthCookies,
   isAdminDashboardRole,
@@ -27,7 +27,7 @@ async function fetchCurrentUser(accessToken: string): Promise<User | null> {
 }
 
 export async function GET(request: NextRequest) {
-  const loginUrl = new URL('/login', request.url);
+  const loginUrl = buildAppUrl(request, '/login');
 
   const oauthError = request.nextUrl.searchParams.get('error');
   if (oauthError) {
@@ -76,8 +76,7 @@ export async function GET(request: NextRequest) {
     return denied;
   }
 
-  const dashboardUrl = new URL('/dashboard', request.url);
-  const response = NextResponse.redirect(dashboardUrl);
+  const response = NextResponse.redirect(buildAppUrl(request, '/dashboard'));
   setAuthCookies(response, tokens, user);
   return response;
 }

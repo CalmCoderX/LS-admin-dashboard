@@ -31,3 +31,8 @@ export function getPublicAppOrigin(request: NextRequest): string {
 export function getOAuthCallbackUrl(request: NextRequest): string {
   return `${getPublicAppOrigin(request)}/api/auth/oauth/callback`;
 }
+
+/** Build an absolute app URL (Amplify SSR may use localhost in request.url). */
+export function buildAppUrl(request: NextRequest, pathname: string): URL {
+  return new URL(pathname, `${getPublicAppOrigin(request)}/`);
+}
