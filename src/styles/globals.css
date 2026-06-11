@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-bg-main text-text-primary dark:bg-gray-900 dark:text-gray-100;
+  }
+
+  * {
+    @apply border-gray-light dark:border-gray-600;
+  }
+
+  /* Improve text contrast in dark mode */
+  .text-text-primary {
+    @apply dark:text-gray-100;
+  }
+
+  .text-text-secondary {
+    @apply dark:text-gray-300;
+  }
+
+  /* Table specific improvements */
+  table {
+    @apply bg-white dark:bg-gray-800;
+  }
+
+  th {
+    @apply bg-bg-light-2 dark:bg-gray-700 text-text-secondary dark:text-gray-200 border-b border-bg-light-6 dark:border-gray-600;
+  }
+
+  td {
+    @apply bg-white dark:bg-gray-800 text-text-primary dark:text-gray-100 border-b border-bg-light-6 dark:border-gray-600;
+  }
+
+  tr:hover td {
+    @apply bg-bg-light-1 dark:bg-gray-700;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-navy dark:bg-blue-600 hover:bg-brand-blue-1 dark:hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium;
+  }
+
+  .btn-secondary {
+    @apply bg-bg-light-1 dark:bg-gray-700 hover:bg-bg-light-4 dark:hover:bg-gray-600 text-text-primary dark:text-gray-100 px-4 py-2 rounded-lg transition-colors duration-200 font-medium border border-bg-light-6 dark:border-gray-600;
+  }
+
+  .btn-danger {
+    @apply bg-status-error dark:bg-red-600 hover:bg-red-600 dark:hover:bg-red-500 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium;
+  }
+
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-custom p-6 border border-bg-light-6 dark:border-gray-700;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-bg-light-6 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-navy dark:focus:ring-blue-400 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-800 text-text-primary dark:text-gray-100;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150 text-text-secondary dark:text-gray-300 hover:bg-bg-light-1 dark:hover:bg-gray-700 hover:text-brand-navy dark:hover:text-blue-400;
+  }
+
+  .sidebar-link-active {
+    @apply bg-brand-navy dark:bg-blue-600 text-white hover:bg-brand-blue-1 dark:hover:bg-blue-500 hover:text-white shadow-sm;
+  }
+
+  .table-header {
+    @apply bg-bg-light-2 dark:bg-gray-700 text-text-secondary dark:text-gray-300 font-semibold text-sm uppercase tracking-wider;
+  }
+
+  .table-row {
+    @apply border-b border-bg-light-6 dark:border-gray-600 hover:bg-bg-light-1 dark:hover:bg-gray-700 transition-colors duration-150 bg-white dark:bg-gray-800;
+  }
+
+  .badge-success {
+    @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-error {
+    @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-secondary {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded-full text-xs font-medium;
+  }
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-bg-light-1;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-medium-2 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-medium-3;
+}
+
+/* Loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Focus styles for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white;
+}
+
+

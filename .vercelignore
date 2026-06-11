@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+.next/
+out/
+
+# Development files
+.env*
+*.log
+*.lock
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+
+# Documentation (not needed for build)
+*.md
+CHANGELOG*
+AUTH0_SETUP*
+DEPLOYMENT*
+
+# Source control
+.git/
+.gitignore
+
+# Reduce build complexity by excluding large binaries
+node_modules/@swc/core-linux-*
+node_modules/@esbuild/linux-*
+node_modules/@next/swc-linux-*
