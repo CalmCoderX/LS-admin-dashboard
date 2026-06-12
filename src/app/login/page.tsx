@@ -1,25 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
-import { Shield, LogIn, Lock, UserCheck, Mail, Loader2 } from 'lucide-react';
+import { Shield, LogIn, Lock, UserCheck, Mail, Loader2, ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import OTPInput from '@/components/ui/OTPInput';
 import { GoogleIcon } from '@/components/ui/GoogleIcon';
 import logoImage from '@/assets/images/logo.png';
+import {
+  getCredentialAuthErrorMessage,
+  isCredentialLoginDisabledError,
+} from '@/lib/credential-auth-errors';
+import {
+  buildMfaQrCodeUrl,
+  CredentialMfaChallenge,
+  MfaEnrollmentData,
+} from '@/lib/credential-mfa';
 
 export default function LoginPage() {
-  const { loginWithGoogle, loginWithCredentials, isAuthenticated, isLoading } = useAuth();
+  const {
+    loginWithGoogle,
+    loginWithCredentials,
+    completeMfaLogin,
+    startMfaEnrollment,
+    isAuthenticated,
+    isLoading,
+  } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mfaChallenge, setMfaChallenge] = useState<CredentialMfaChallenge | null>(null);
+  const [mfaEnrollment, setMfaEnrollment] = useState<MfaEnrollmentData | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [mfaSubmitting, setMfaSubmitting] = useState(false);
+  const [enrollingMfa, setEnrollingMfa] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [mfaNotice, setMfaNotice] = useState('');
+  const [ssoOnlyNotice, setSsoOnlyNotice] = useState('');
 
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
@@ -38,19 +62,118 @@ export default function LoginPage() {
     loginWithGoogle();
   };
 
-  const isAuthActionPending = submitting || googleSubmitting;
+  const isAuthActionPending = submitting || googleSubmitting || mfaSubmitting || enrollingMfa;
+  const showMfaEnrollment = Boolean(mfaChallenge?.mfaEnrollmentRequired || mfaEnrollment);
+
+  useEffect(() => {
+    if (!mfaChallenge?.mfaEnrollmentRequired || mfaEnrollment) {
+      return;
+    }
+
+    let cancelled = false;
+    setEnrollingMfa(true);
+    setError('');
+
+    startMfaEnrollment(mfaChallenge.mfaToken)
+      .then(enrollment => {
+        if (cancelled) {
+          return;
+        }
+        setMfaEnrollment(enrollment);
+        setMfaNotice(
+          'Scan the QR code with Google Authenticator, Authy, or another authenticator app, then enter the 6-digit code.'
+        );
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Could not start MFA setup');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setEnrollingMfa(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mfaChallenge, mfaEnrollment, startMfaEnrollment]);
 
   const handleCredentialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMfaNotice('');
+    setSsoOnlyNotice('');
+    setMfaEnrollment(null);
     setSubmitting(true);
     try {
-      await loginWithCredentials(email.trim(), password);
+      const result = await loginWithCredentials(email.trim(), password);
+      if (result.status === 'mfa_required') {
+        setMfaChallenge(result);
+        setMfaCode('');
+        if (result.mfaEnrollmentRequired) {
+          setMfaNotice('Set up an authenticator app to continue.');
+        } else {
+          setMfaNotice('Enter the 6-digit code from your authenticator app.');
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const serverResponse =
+        err && typeof err === 'object' && 'serverResponse' in err
+          ? (err as { serverResponse?: unknown }).serverResponse
+          : undefined;
+
+      if (isCredentialLoginDisabledError(serverResponse)) {
+        setSsoOnlyNotice(
+          getCredentialAuthErrorMessage(
+            serverResponse,
+            'Your organization does not support email and password sign-in. Please use Google sign-in instead.'
+          )
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Login failed');
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const verifyInFlight = useRef(false);
+
+  const handleMfaVerify = useCallback(
+    async (code: string) => {
+      if (!mfaChallenge || verifyInFlight.current || mfaSubmitting) {
+        return;
+      }
+
+      verifyInFlight.current = true;
+      setError('');
+      setMfaSubmitting(true);
+      try {
+        await completeMfaLogin(email.trim(), mfaChallenge.mfaToken, code.trim());
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Verification failed');
+        setMfaCode('');
+      } finally {
+        setMfaSubmitting(false);
+        verifyInFlight.current = false;
+      }
+    },
+    [completeMfaLogin, email, mfaChallenge, mfaSubmitting]
+  );
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleMfaVerify(mfaCode);
+  };
+
+  const handleBackToPassword = () => {
+    setMfaChallenge(null);
+    setMfaEnrollment(null);
+    setMfaCode('');
+    setMfaNotice('');
+    setError('');
   };
 
   if (isLoading) {
@@ -148,6 +271,104 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {ssoOnlyNotice && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
+                  {ssoOnlyNotice}
+                </div>
+              )}
+
+              {mfaNotice && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
+                  {mfaNotice}
+                </div>
+              )}
+
+              {mfaChallenge ? (
+                <form onSubmit={handleMfaSubmit} className="space-y-4 mb-6">
+                  {showMfaEnrollment && (
+                    <div className="space-y-3 rounded-lg border border-bg-light-6 bg-bg-light-1 p-4 dark:border-gray-600 dark:bg-gray-900">
+                      <p className="text-sm font-medium text-text-primary">
+                        {enrollingMfa ? 'Preparing authenticator setup...' : 'Set up authenticator app'}
+                      </p>
+                      {enrollingMfa && (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-6 w-6 animate-spin text-text-secondary" />
+                        </div>
+                      )}
+                      {mfaEnrollment && (
+                        <>
+                          <div className="flex justify-center">
+                            <img
+                              src={buildMfaQrCodeUrl(mfaEnrollment.barcodeUri)}
+                              alt="Authenticator app QR code"
+                              width={200}
+                              height={200}
+                              className="rounded-lg border border-bg-light-6 bg-white p-2 dark:border-gray-600"
+                            />
+                          </div>
+                          <p className="text-xs text-text-secondary break-all">
+                            Or enter this key manually:{' '}
+                            <span className="font-mono text-text-primary">{mfaEnrollment.secret}</span>
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-primary">
+                      Authenticator code
+                    </label>
+                    <OTPInput
+                      value={mfaCode}
+                      onChange={code => {
+                        setMfaCode(code);
+                        if (error) {
+                          setError('');
+                        }
+                      }}
+                      onComplete={handleMfaVerify}
+                      disabled={
+                        mfaSubmitting ||
+                        (showMfaEnrollment && !mfaEnrollment)
+                      }
+                      autoFocus={!showMfaEnrollment || Boolean(mfaEnrollment)}
+                      hasError={Boolean(error)}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      isAuthActionPending ||
+                      mfaCode.length < 6 ||
+                      (showMfaEnrollment && !mfaEnrollment)
+                    }
+                    className="w-full flex items-center justify-center gap-3 rounded-lg border border-bg-light-6 bg-white px-4 py-3 text-sm font-medium text-text-primary transition hover:bg-bg-light-1 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800"
+                  >
+                    {mfaSubmitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Shield className="w-5 h-5" />
+                    )}
+                    {mfaSubmitting
+                      ? 'Verifying...'
+                      : showMfaEnrollment
+                        ? 'Complete setup and sign in'
+                        : 'Verify and sign in'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBackToPassword}
+                    disabled={isAuthActionPending}
+                    className="w-full flex items-center justify-center gap-2 text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to password sign-in
+                  </button>
+                </form>
+              ) : (
               <form onSubmit={handleCredentialLogin} className="space-y-4 mb-6">
                 <div>
                   <label htmlFor="email" className="mb-1 block text-sm font-medium text-text-primary">
@@ -208,7 +429,10 @@ export default function LoginPage() {
                   {submitting ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>
+              )}
 
+              {!mfaChallenge && (
+              <>
               <div className="relative mb-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-bg-light-6 dark:border-gray-600" />
@@ -231,6 +455,8 @@ export default function LoginPage() {
                 )}
                 {googleSubmitting ? 'Redirecting to Google...' : 'Sign in with Google'}
               </button>
+              </>
+              )}
 
               <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-start gap-3">

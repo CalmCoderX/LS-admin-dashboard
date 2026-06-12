@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const message = extractBackendErrorMessage(payload, 'Failed to send reset email');
-      return NextResponse.json({ success: false, message }, { status: response.status });
+      return NextResponse.json(
+        { success: false, message, error: payload?.error ?? null },
+        { status: response.status }
+      );
     }
 
     return NextResponse.json({

@@ -20,6 +20,15 @@ import {
   USER_DATA_KEY,
 } from '@/utils/auth-constants';
 import { extractBackendErrorMessage } from '@/utils/error';
+import {
+  CredentialMfaChallenge,
+  MfaEnrollmentData,
+  parseCredentialMfaChallenge,
+} from '@/lib/credential-mfa';
+
+export type CredentialLoginResult =
+  | { status: 'success' }
+  | ({ status: 'mfa_required' } & CredentialMfaChallenge);
 
 interface AuthContextType {
   user: User | null;
@@ -28,7 +37,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
   loginWithGoogle: () => void;
-  loginWithCredentials: (email: string, password: string) => Promise<void>;
+  loginWithCredentials: (email: string, password: string) => Promise<CredentialLoginResult>;
+  completeMfaLogin: (email: string, mfaToken: string, otp: string) => Promise<void>;
+  startMfaEnrollment: (mfaToken: string) => Promise<MfaEnrollmentData>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -180,7 +191,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     window.location.href = `/api/auth/oauth/authorize?${params.toString()}`;
   };
 
-  const loginWithCredentials = async (email: string, password: string) => {
+  const loginWithCredentials = async (
+    email: string,
+    password: string
+  ): Promise<CredentialLoginResult> => {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -191,7 +205,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const payload = await response.json();
 
     if (!response.ok) {
-      throw new Error(extractBackendErrorMessage(payload, 'Login failed'));
+      const message = extractBackendErrorMessage(payload, 'Login failed');
+      const error = new Error(message) as Error & { serverResponse?: unknown };
+      error.serverResponse = payload;
+      throw error;
+    }
+
+    const mfaChallenge = parseCredentialMfaChallenge(payload);
+    if (mfaChallenge) {
+      return { status: 'mfa_required', ...mfaChallenge };
     }
 
     const loggedInUser = payload?.data?.user as User | undefined;
@@ -202,6 +224,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(loggedInUser);
     toast.success(`Welcome, ${loggedInUser.name}!`);
     router.push('/dashboard');
+    return { status: 'success' };
+  };
+
+  const completeMfaLogin = async (email: string, mfaToken: string, otp: string) => {
+    const response = await fetch('/api/auth/login/mfa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, mfa_token: mfaToken, otp }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      const message = extractBackendErrorMessage(payload, 'Verification failed');
+      throw new Error(message);
+    }
+
+    const loggedInUser = payload?.data?.user as User | undefined;
+    if (!loggedInUser || !isAdminRole(loggedInUser.role)) {
+      throw new Error('Access denied. Admin role required.');
+    }
+
+    setUser(loggedInUser);
+    toast.success(`Welcome, ${loggedInUser.name}!`);
+    router.push('/dashboard');
+  };
+
+  const startMfaEnrollment = async (mfaToken: string): Promise<MfaEnrollmentData> => {
+    const response = await fetch('/api/auth/login/mfa/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ mfa_token: mfaToken }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      const message = extractBackendErrorMessage(payload, 'Could not start MFA setup');
+      throw new Error(message);
+    }
+
+    const data = payload?.data;
+    if (!data?.secret || !data?.barcode_uri) {
+      throw new Error('Could not start MFA setup');
+    }
+
+    return {
+      secret: data.secret,
+      barcodeUri: data.barcode_uri,
+      recoveryCodes: Array.isArray(data.recovery_codes) ? data.recovery_codes : [],
+    };
   };
 
   const logout = async () => {
@@ -247,6 +321,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isSuperAdmin,
     loginWithGoogle,
     loginWithCredentials,
+    completeMfaLogin,
+    startMfaEnrollment,
     logout,
     refreshUser,
   };

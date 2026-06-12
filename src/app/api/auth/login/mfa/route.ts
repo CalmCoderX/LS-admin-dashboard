@@ -30,25 +30,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const email = body?.email;
-    const password = body?.password;
+    const mfaToken = body?.mfa_token;
+    const otp = body?.otp;
 
-    if (!email || !password) {
+    if (!email || !mfaToken || !otp) {
       return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
+        { success: false, message: 'Email, MFA token, and verification code are required' },
         { status: 400 }
       );
     }
 
-    const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login/mfa`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, mfa_token: mfaToken, otp }),
     });
 
     const loginPayload = await loginResponse.json();
 
     if (!loginResponse.ok) {
-      const message = extractBackendErrorMessage(loginPayload, 'Login failed');
+      const message = extractBackendErrorMessage(loginPayload, 'Verification failed');
       return NextResponse.json(
         {
           success: false,
@@ -60,19 +61,6 @@ export async function POST(request: NextRequest) {
     }
 
     const tokens = loginPayload?.data;
-    if (tokens?.mfa_required) {
-      return NextResponse.json({
-        success: true,
-        mfaRequired: true,
-        message: loginPayload?.message || 'Multi-factor authentication is required.',
-        data: {
-          mfa_token: tokens.mfa_token,
-          mfa_enrollment_required: Boolean(tokens.mfa_enrollment_required),
-          authenticators: tokens.mfa_authenticators ?? [],
-        },
-      });
-    }
-
     if (!tokens?.access_token) {
       return NextResponse.json(
         { success: false, message: 'Invalid login response' },
@@ -101,9 +89,9 @@ export async function POST(request: NextRequest) {
     setAuthCookies(response, tokens, user);
     return response;
   } catch (error) {
-    console.error('Admin credential login failed:', error);
+    console.error('Admin MFA login failed:', error);
     return NextResponse.json(
-      { success: false, message: 'Login failed' },
+      { success: false, message: 'Verification failed' },
       { status: 500 }
     );
   }

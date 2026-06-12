@@ -51,7 +51,7 @@ function getAccessTokenFromCookie(): string | null {
   const match = document.cookie
     .split('; ')
     .find(row => row.startsWith(`${AUTH_TOKEN_KEY}=`));
-  return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
+  return match ? decodeURIComponent(match.split('=').slice(1).join('=')).trim() : null;
 }
 
 async function refreshSessionAccessToken(): Promise<string> {

@@ -6,16 +6,22 @@ import Image from 'next/image';
 import { ArrowLeft, Mail, Shield } from 'lucide-react';
 import logoImage from '@/assets/images/logo.png';
 import { extractBackendErrorMessage } from '@/utils/error';
+import {
+  getCredentialAuthErrorMessage,
+  isCredentialLoginDisabledError,
+} from '@/lib/credential-auth-errors';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [ssoOnlyNotice, setSsoOnlyNotice] = useState('');
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSsoOnlyNotice('');
     setSuccess(false);
     setSubmitting(true);
 
@@ -29,6 +35,15 @@ export default function ForgotPasswordPage() {
       const payload = await response.json();
 
       if (!response.ok) {
+        if (isCredentialLoginDisabledError(payload)) {
+          setSsoOnlyNotice(
+            getCredentialAuthErrorMessage(
+              payload,
+              'Your organization does not support password reset. Please sign in with Google instead.'
+            )
+          );
+          return;
+        }
         throw new Error(extractBackendErrorMessage(payload, 'Failed to send reset email'));
       }
 
@@ -68,6 +83,12 @@ export default function ForgotPasswordPage() {
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
               {error}
+            </div>
+          )}
+
+          {ssoOnlyNotice && (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
+              {ssoOnlyNotice}
             </div>
           )}
 
