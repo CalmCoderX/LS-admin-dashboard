@@ -370,7 +370,7 @@ export default function ActivationCodeModal({
                     Trial code delivery <span className="text-status-error">*</span>
                   </p>
                   <div className="space-y-2">
-                    <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 has-[:checked]:border-brand-navy has-[:checked]:bg-bg-light-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md border border-bg-light-6 p-3 has-[:checked]:border-brand-navy has-[:checked]:bg-bg-light-2 dark:border-gray-600 dark:has-[:checked]:border-blue-500 dark:has-[:checked]:bg-blue-950/40">
                       <input
                         type="radio"
                         value="existing_user"
@@ -393,7 +393,7 @@ export default function ActivationCodeModal({
                         </span>
                       </span>
                     </label>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 has-[:checked]:border-brand-navy has-[:checked]:bg-bg-light-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md border border-bg-light-6 p-3 has-[:checked]:border-brand-navy has-[:checked]:bg-bg-light-2 dark:border-gray-600 dark:has-[:checked]:border-blue-500 dark:has-[:checked]:bg-blue-950/40">
                       <input
                         type="radio"
                         value="open_registration"
